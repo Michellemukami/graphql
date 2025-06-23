@@ -7,11 +7,34 @@ const bcrypt = require("bcryptjs");
 
 const Event = require("./models/event");
 const User = require("./models/User");
+
 const app = express();
 
-const events = [];
+
 
 app.use(bodyParser.json());
+
+const user = userId =>{
+    return User.findById(userId)
+    .then(user => {
+        return { ...user._doc, _id: user.id, createdEvents: events.bind(this, user._doc.createdEvents) };
+    })
+    .catch(err => {
+        throw err;
+    });
+}
+
+const events = eventIds => {
+    return Event.find({ _id: { $in: eventIds } })
+        .then(events => {
+            return events.map(event => {
+                return { ...event._doc, _id: event.id, creator: user.bind(this, event.creator) };
+            });
+        })
+        .catch(err => {
+            throw err;
+        });
+}
 
 app.use(
   "/graphql",
@@ -23,6 +46,7 @@ app.use(
                 description: String!
                 price: Float!
                 date: String!
+                creator: User!
             }
 
             type User {
@@ -60,9 +84,14 @@ app.use(
     rootValue: {
       events: () => {
         return Event.find()
+         
           .then((events) => {
             return events.map((event) => {
-              return { ...event._doc };
+              return {
+                ...event._doc,
+                _id: event.id,
+                creator: user.bind(this, event._doc.creator)
+              };
             });
           })
           .catch((err) => {
@@ -82,9 +111,8 @@ app.use(
         return event
           .save()
           .then((result) => {
-            createdEvent = { ...result._doc, _id: result.id };
-            User.findById("68596a6cf45336596943c93d")
-            .then((user) => {
+            createdEvent = { ...result._doc, _id: result.id, creator: user.bind(this, result._doc.creator) };
+            User.findById("68596a6cf45336596943c93d").then((user) => {
               if (!user) {
                 throw new Error("User not found.");
               }
@@ -93,7 +121,8 @@ app.use(
             });
             console.log("Event created:", result);
             return { ...result._doc };
-          }).then((result) => {
+          })
+          .then((result) => {
             return createdEvent;
           })
           .catch((err) => {
